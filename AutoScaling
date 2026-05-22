@@ -1,0 +1,41 @@
+from google.cloud import compute_v1
+import sys
+
+def fix_infrastructure_performance():
+    print("=== STARTING INFRASRUCTURE OPTIMIZATION (GCP API) ===")
+    
+    project_id = "it-financial-services-indomaret"
+    zone = "asia-southeast2-a"  
+    autoscaler_name = "web-app-autoscaler"
+    target_instance_group = "web-financial-group"
+
+    # Inisialisasi client Compute Engine untuk Autoscalers
+    autoscalers_client = compute_v1.AutoscalersClient()
+
+    # Merancang aturan Autoscaling baru (Bila CPU > 75%, server membelah diri otomatis hingga maks 5)
+    autoscaler_resource = compute_v1.Autoscaler(
+        name=autoscaler_name,
+        target=f"https://www.googleapis.com/compute/v1/projects/{project_id}/zones/{zone}/instanceGroupManagers/{target_instance_group}",
+        autoscaling_policy=compute_v1.AutoscalingPolicy(
+            max_num_replicas=5,
+            min_num_replicas=1,
+            cool_down_period_sec=60,
+            cpu_utilization_rule=compute_v1.AutoscalingPolicyCpuUtilization(
+                utilization_target=0.75  # Target batas aman CPU (75%)
+            )
+        )
+    )
+
+    try:
+        print(f"Mengirimkan konfigurasi Autoscaling baru ke GCP untuk grup: {target_instance_group}...")
+        # Eksekusi perintah update ke cloud Google
+        operation = autoscalers_client.insert(
+            project=project_id, zone=zone, autoscaler_resource=autoscaler_resource
+        )
+        print(f"[SUKSES] Sistem Autoscaling berhasil diterapkan. Bug server overload teratasi!")
+    except Exception as e:
+        print(f"[ERROR] Gagal melakukan optimasi infrastruktur GCP: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    fix_infrastructure_performance()

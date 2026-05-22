@@ -1,0 +1,35 @@
+from google.cloud import storage
+from datetime import datetime, timezone, timedelta
+import functions_framework
+
+@functions_framework.http
+def clean_old_gcp_backups(request):
+    print("=== STARTING GCP BUCKET AUTOMATION ===")
+    
+    # 1. Tentukan nama bucket GCP kamu
+    bucket_name = "financial-backup-bucket-prod" 
+    
+    # 2. Inisialisasi client Google Cloud Storage
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    
+    # 3. Hitung batas tanggal (30 hari ke belakang)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=30)
+    
+    # Ambil semua daftar file (blobs) yang ada di dalam bucket
+    blobs = bucket.list_blobs()
+    deleted_count = 0
+    
+    print(f"Memeriksa file usang di dalam bucket: {bucket_name}...")
+    
+    for blob in blobs:
+        # Cek jika waktu pembuatan file lebih tua dari 30 hari yang lalu
+        if blob.time_created < cutoff_date:
+            print(f"➔ Menghapus file usang ditemukan: {blob.name} (Dibuat: {blob.time_created})")
+            blob.delete()
+            deleted_count += 1
+            
+    status_message = f"[SUKSES] Otomatisasi pembersihan selesai. Berhasil menghapus {deleted_count} file cadangan usang."
+    print(status_message)
+    
+    return status_message, 200
